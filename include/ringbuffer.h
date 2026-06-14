@@ -51,8 +51,8 @@ void write(const void* data, size_t length){
         memcpy(preWriteBuffer, data, length);
     else{
         size_t stubLength = _endRing - preWriteBuffer;
-        memcpy(preWriteBuffer, data, stubLength);
-        memcpy(_startRing, data + stubLength, length - stubLength);
+        memcpy(preWriteBuffer, data , stubLength);
+        memcpy(_startRing, static_cast<const char*>(data) + stubLength, length - stubLength);
     }
 
     while(preWriteBuffer != _writePointer.load());
@@ -78,7 +78,7 @@ void read(void* data, std::size_t length){
         postReadBuffer = postReadBuffer < _endRing ? postReadBuffer : postReadBuffer - (_endRing - _startRing);
         _usedSpace.fetch_sub(size);
 
-        if(_readPointer.compare_exchange_strong(preReadBuffer, postReadBuffer))
+        if(_readBuffer.compare_exchange_strong(preReadBuffer, postReadBuffer))
             break;
         
         _usedSpace.fetch_add(size, std::memory_order_relaxed);
@@ -90,7 +90,7 @@ void read(void* data, std::size_t length){
     else{
         auto stubLength = _endRing - preReadBuffer;
         memcpy(data, preReadBuffer, stubLength);
-        memcpy(data + stubLength, _startRing, length - stubLength);
+        memcpy(static_cast<char*>(data) + stubLength, _startRing, length - stubLength);
     }
 
     auto postReadBuffer = preReadBuffer + size;
